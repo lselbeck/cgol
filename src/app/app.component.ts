@@ -5,6 +5,9 @@ import { Component } from '@angular/core';
 	template: 
 	`
 	<h1>Conway's Game of Life</h1>
+	<button (click)='startGame()' [disabled]="isRunning()">Start</button>
+	<button (click)='stopGame()' [disabled]="!isRunning()">Stop</button>
+	<button (click)='clearGame()' [disabled]="isRunning()">Clear</button>
 	<div class='row' *ngFor="let row of board; let y = index" [style.height]="squareH + 'px'">
 		<div 
 			*ngFor="let square of board[y]; let x = index"
@@ -18,18 +21,20 @@ import { Component } from '@angular/core';
 })
 export class AppComponent { 
 	//control variables
-	BOARD_SIZE: number = 20; //the number of squares tall the board is
-	BOARD_INTERVAL: number = 1000; //number of milliseconds the board takes to update
+	BOARD_SIZE: number = 100; //the number of squares tall the board is
+	BOARD_INTERVAL: number = 100; //number of milliseconds the board takes to update
 
 	//board stuff
 	squareH: number;
 	squareW: number;
 	board: boolean[][];
+	boardHistory: boolean[][];
 	boardUpdater: any;
+	running: boolean;
 
 	constructor() {
 		this.initBoard();
-		this.boardUpdater = setInterval(this.updateBoard(), this.BOARD_INTERVAL);
+		this.running = false;
 	}
 
 	initBoard() {
@@ -41,16 +46,39 @@ export class AppComponent {
 		this.squareW = Math.floor(viewportW * 0.95 / boardW);
 
 		this.board = [];
+		this.boardHistory = [];
 		for (let i = 0; i < boardH; i++) {
 			this.board[i] = [];
+			this.boardHistory[i] = [];
 			for (let j = 0; j < boardW; j++) {
 				this.board[i][j] = false;
+				this.boardHistory[i][j] = false;
 			}
 		}
+		
 	}
 
 	flipSquare(y: number, x: number) {
-		this.board[y][x] = !this.board[y][x];
+		this.boardHistory[y][x] = this.board[y][x] = !this.board[y][x];
+	}
+
+	startGame() {
+		this.running = true;
+		this.boardUpdater = setInterval(this.updateBoard.bind(this), this.BOARD_INTERVAL);
+	}
+
+	stopGame() {
+		this.running = false;
+		clearInterval(this.boardUpdater);
+	}
+
+	clearGame() {
+		this.stopGame();
+		this.initBoard();
+	}
+
+	isRunning(): boolean {
+		return this.running;
 	}
 
 	//Apply conway's rules every update
@@ -58,24 +86,34 @@ export class AppComponent {
 		for (let y = 0; y < this.board.length; y++) {
 			for (let x = 0; x < this.board[0].length; x++) {
 				let numberOfNeighbors = this.getNumberOfNeighbors(y, x);
-				if (this.board[y][x] && numberOfNeighbors < 2) this.board[y][x] = false;
-				else if (this.board[y][x] && (numberOfNeighbors == 2 || numberOfNeighbors == 3)) this.board[y][x] = true;
-				else if (this.board[y][x] && numberOfNeighbors > 3) this.board[y][x] = false;
-				else if (!this.board[y][x] && numberOfNeighbors == 3) this.board[y][x] = true;
+				if (this.boardHistory[y][x] && numberOfNeighbors < 2) this.board[y][x] = false;
+				else if (this.boardHistory[y][x] && (numberOfNeighbors == 2 || numberOfNeighbors == 3)) this.board[y][x] = true;
+				else if (this.boardHistory[y][x] && numberOfNeighbors > 3) this.board[y][x] = false;
+				else if (!this.boardHistory[y][x] && numberOfNeighbors == 3) this.board[y][x] = true;
+			}
+		}
+		for (let y = 0; y < this.board.length; y++) {
+			for (let x = 0; x < this.board[0].length; x++) {
+				this.boardHistory[y][x] = this.board[y][x];
 			}
 		}
 	}
 
 	getNumberOfNeighbors(y: number, x: number): number {
 		let count: number = 0;
-		if (this.board[Math.max(y-1, 0)][Math.max(x-1, 0)]) count++;
-		if (this.board[Math.max(y-1, 0)][x]) count++;
-		if (this.board[Math.max(y-1, 0)][Math.min(x+1, this.board[x].length-1)]) count++;
-		if (this.board[y][Math.min(x+1, this.board[x].length-1)]) count++;
-		if (this.board[Math.min(y+1, this.board.length-1)][Math.min(x+1, this.board[x].length-1)]) count++;
-		if (this.board[Math.min(y+1, this.board.length-1)][x]) count++;
-		if (this.board[Math.min(y+1, this.board.length-1)][Math.max(x-1, 0)]) count++;
-		if (this.board[y][Math.max(x-1, 0)]]) count++;
+		if (!this.isOutOfBounds(y-1, x-1) && this.boardHistory[y-1][x-1]) count++;
+		if (!this.isOutOfBounds(y-1, x)   && this.boardHistory[y-1][x])   count++;
+		if (!this.isOutOfBounds(y-1, x+1) && this.boardHistory[y-1][x+1]) count++;
+		if (!this.isOutOfBounds(y,   x+1) && this.boardHistory[y]  [x+1]) count++;
+		if (!this.isOutOfBounds(y+1, x+1) && this.boardHistory[y+1][x+1]) count++;
+		if (!this.isOutOfBounds(y+1, x)   && this.boardHistory[y+1][x])   count++;
+		if (!this.isOutOfBounds(y+1, x-1) && this.boardHistory[y+1][x-1]) count++;
+		if (!this.isOutOfBounds(y,   x-1) && this.boardHistory[y]  [x-1]) count++;
 		return count;
+	}
+
+	isOutOfBounds(y: number, x: number): boolean {
+		return y < 0 || y >= this.board.length
+			|| x < 0 || x >= this.board[0].length;
 	}
 }

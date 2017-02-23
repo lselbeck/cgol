@@ -1,5 +1,25 @@
 h1 {
-  color: #369;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 250%;
+	color: #369;
+	font-family: Arial, Helvetica, sans-serif;
+	margin: 0;
+	text-align: center
+}
+
+.row {
+	text-align:center;
+}
+
+.square {
+	display: inline-block;
+	height: 100%;
+	margin: 0;
+}
+
+html {
+	height: 100%;
+	background-color: rgb(0, 125, 125);
+}
+
+html * {
+	color: rgb(125, 175, 200);
 }

@@ -12,17 +12,19 @@ var core_1 = require('@angular/core');
 var CgolComponent = (function () {
     function CgolComponent() {
         //control variables
-        this.BOARD_SIZE = 100; //the number of squares tall the board is
-        this.BOARD_INTERVAL = 100; //number of milliseconds the board takes to update
-        this.intervalOptions = [50, 100, 500, 1000, 2000];
-        this.initBoard(this.BOARD_SIZE);
+        this.intervalOptions = [100, 200, 500, 1000, 2000];
+        this.sizeOptions = [10, 20, 50, 100];
+        this.BOARD_SIZE = this.sizeOptions[3]; //the number of squares tall the board is
+        this.BOARD_INTERVAL = this.intervalOptions[0]; //number of milliseconds the board takes to update
+        this.initBoard();
         this.running = false;
         this.mouseState = false;
+        this.drawing = true;
     }
-    CgolComponent.prototype.initBoard = function (boardSize) {
+    CgolComponent.prototype.initBoard = function () {
         var viewportW = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
         var viewportH = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
-        var boardH = boardSize;
+        var boardH = this.BOARD_SIZE;
         var boardW = Math.floor(boardH * viewportW / viewportH);
         this.squareH = Math.floor(viewportH * 0.95 / boardH);
         this.squareW = Math.floor(viewportW * 0.95 / boardW);
@@ -37,11 +39,29 @@ var CgolComponent = (function () {
             }
         }
     };
-    CgolComponent.prototype.mouseDown = function (y, x) { this.mouseState = true; };
-    CgolComponent.prototype.mouseUp = function (y, x) { this.mouseState = false; };
-    CgolComponent.prototype.flipSquare = function (y, x) {
-        if (this.mouseState)
-            this.boardHistory[y][x] = this.board[y][x] = !this.board[y][x];
+    CgolComponent.prototype.mouseDown = function (y, x) {
+        this.mouseState = true;
+        this.drawing = !this.board[y][x];
+        this.mouseDrag(y, x);
+    };
+    CgolComponent.prototype.mouseUp = function (y, x) {
+        this.mouseState = false;
+    };
+    CgolComponent.prototype.mouseDrag = function (y, x) {
+        if (this.mouseState) {
+            if (this.drawing) {
+                this.drawSquare(y, x);
+            }
+            else {
+                this.eraseSquare(y, x);
+            }
+        }
+    };
+    CgolComponent.prototype.drawSquare = function (y, x) {
+        this.boardHistory[y][x] = this.board[y][x] = true;
+    };
+    CgolComponent.prototype.eraseSquare = function (y, x) {
+        this.boardHistory[y][x] = this.board[y][x] = false;
     };
     CgolComponent.prototype.startGame = function () {
         this.running = true;
@@ -53,7 +73,11 @@ var CgolComponent = (function () {
     };
     CgolComponent.prototype.clearGame = function () {
         this.stopGame();
-        this.initBoard(this.BOARD_SIZE);
+        for (var i = 0; i < this.board.length; i++) {
+            for (var j = 0; j < this.board[0].length; j++) {
+                this.eraseSquare(i, j);
+            }
+        }
     };
     CgolComponent.prototype.isRunning = function () {
         return this.running;
@@ -105,13 +129,21 @@ var CgolComponent = (function () {
     };
     CgolComponent.prototype.updateInterval = function (interval) {
         this.BOARD_INTERVAL = interval;
-        this.stopGame();
-        this.startGame();
+        if (this.running) {
+            this.stopGame();
+            this.startGame();
+        }
+    };
+    CgolComponent.prototype.updateSize = function (size) {
+        this.BOARD_SIZE = size;
+        if (this.running)
+            this.stopGame();
+        this.initBoard();
     };
     CgolComponent = __decorate([
         core_1.Component({
             selector: 'cgol',
-            template: "\n\t<button (click)='startGame()' [disabled]=\"isRunning()\">Start</button>\n\t<button (click)='stopGame()' [disabled]=\"!isRunning()\">Stop</button>\n\t<button (click)='clearGame()' [disabled]=\"isRunning()\">Clear</button>\n\t<select #interval (change)=\"updateInterval(interval.value)\" value={{intervalOptions[0]}}>\n\t\t<option selected disabled>Interval (ms)</option>\n\t\t<option *ngFor=\"let interval of intervalOptions\">{{interval}}</option>\n\t</select>\n\n\n\t<div class='row disable-select' *ngFor=\"let row of board; let y = index\" [style.height]=\"squareH + 'px'\">\n\t\t<div \n\t\t\t*ngFor=\"let square of board[y]; let x = index\"\n\t\t\tclass=\"square\"\n\t\t\t[style.background-color]=\"square?'#FFFFFF':'none'\"\n\t\t\t[style.width]=\"squareW + 'px'\"\n\t\t\t(mousedown)=\"mouseDown(y, x)\"\n\t\t\t(mouseup)=\"mouseUp(y, x)\"\n\t\t\t(mouseover)=\"flipSquare(y, x)\"\n\t\t></div>\n\t</div>\n\t",
+            template: "\n\t<button (click)='startGame()' [disabled]=\"isRunning()\">Start</button>\n\t<button (click)='stopGame()' [disabled]=\"!isRunning()\">Stop</button>\n\t<button (click)='clearGame()'>Clear</button>\n\t<select #size (change)=\"updateSize(size.value)\" value={{sizeOptions[3]}}>\n\t\t<option selected disabled>Height</option>\n\t\t<option *ngFor=\"let size of sizeOptions\">{{size}}</option>\n\t</select>\n\t<select #interval (change)=\"updateInterval(interval.value)\" value={{intervalOptions[0]}}>\n\t\t<option selected disabled>Interval (ms)</option>\n\t\t<option *ngFor=\"let interval of intervalOptions\">{{interval}}</option>\n\t</select>\n\n\t<div class='row disable-select' *ngFor=\"let row of board; let y = index\" [style.height]=\"squareH + 'px'\">\n\t\t<div \n\t\t\t*ngFor=\"let square of board[y]; let x = index\"\n\t\t\tclass=\"square\"\n\t\t\t[style.background-color]=\"square?'#FFFFFF':'none'\"\n\t\t\t[style.width]=\"squareW + 'px'\"\n\t\t\t(mousedown)=\"mouseDown(y, x)\"\n\t\t\t(mouseup)=\"mouseUp(y, x)\"\n\t\t\t(mouseover)=\"mouseDrag(y, x)\"\n\t\t></div>\n\t</div>\n\t",
         }), 
         __metadata('design:paramtypes', [])
     ], CgolComponent);

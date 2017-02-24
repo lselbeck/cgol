@@ -6,12 +6,15 @@ import { Component } from '@angular/core';
 	`
 	<button (click)='startGame()' [disabled]="isRunning()">Start</button>
 	<button (click)='stopGame()' [disabled]="!isRunning()">Stop</button>
-	<button (click)='clearGame()' [disabled]="isRunning()">Clear</button>
+	<button (click)='clearGame()'>Clear</button>
+	<select #size (change)="updateSize(size.value)" value={{sizeOptions[3]}}>
+		<option selected disabled>Height</option>
+		<option *ngFor="let size of sizeOptions">{{size}}</option>
+	</select>
 	<select #interval (change)="updateInterval(interval.value)" value={{intervalOptions[0]}}>
 		<option selected disabled>Interval (ms)</option>
 		<option *ngFor="let interval of intervalOptions">{{interval}}</option>
 	</select>
-
 
 	<div class='row disable-select' *ngFor="let row of board; let y = index" [style.height]="squareH + 'px'">
 		<div 
@@ -21,16 +24,17 @@ import { Component } from '@angular/core';
 			[style.width]="squareW + 'px'"
 			(mousedown)="mouseDown(y, x)"
 			(mouseup)="mouseUp(y, x)"
-			(mouseover)="flipSquare(y, x)"
+			(mouseover)="mouseDrag(y, x)"
 		></div>
 	</div>
 	`,
 })
 export class CgolComponent { 
 	//control variables
-	BOARD_SIZE: number = 100; //the number of squares tall the board is
-	BOARD_INTERVAL: number = 100; //number of milliseconds the board takes to update
-	intervalOptions: number[] = [50, 100, 500, 1000, 2000];
+	intervalOptions: number[] = [100, 200, 500, 1000, 2000];
+	sizeOptions: number[] = [10, 20, 50, 100];
+	BOARD_SIZE: number = this.sizeOptions[3]; //the number of squares tall the board is
+	BOARD_INTERVAL: number = this.intervalOptions[0]; //number of milliseconds the board takes to update
 
 	//board stuff
 	squareH: number;
@@ -40,17 +44,19 @@ export class CgolComponent {
 	boardUpdater: any;
 	running: boolean;
 	mouseState: boolean;
+	drawing: boolean;
 
 	constructor() {
-		this.initBoard(this.BOARD_SIZE);
+		this.initBoard();
 		this.running = false;
 		this.mouseState = false;
+		this.drawing = true;
 	}
 
-	initBoard(boardSize: number) {
+	initBoard() {
 		let viewportW: number = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
 		let viewportH: number = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
-		let boardH: number = boardSize;
+		let boardH: number = this.BOARD_SIZE;
 		let boardW: number = Math.floor(boardH * viewportW / viewportH);
 		this.squareH = Math.floor(viewportH * 0.95 / boardH);
 		this.squareW = Math.floor(viewportW * 0.95 / boardW);
@@ -65,14 +71,34 @@ export class CgolComponent {
 				this.boardHistory[i][j] = false;
 			}
 		}
-		
 	}
 
-	mouseDown(y: number, x: number) { this.mouseState = true; }
-	mouseUp(y: number, x: number) { this.mouseState = false; }
+	mouseDown(y: number, x: number) { 
+		this.mouseState = true;
+		this.drawing = !this.board[y][x];
+		this.mouseDrag(y, x);
+	}
 
-	flipSquare(y: number, x: number) {
-		if (this.mouseState) this.boardHistory[y][x] = this.board[y][x] = !this.board[y][x];
+	mouseUp(y: number, x: number) {
+		this.mouseState = false;
+	}
+
+	mouseDrag(y: number, x: number) {
+		if (this.mouseState) {
+			if (this.drawing) {
+				this.drawSquare(y, x);
+			} else {
+				this.eraseSquare(y, x);
+			}
+		}
+	}
+
+	drawSquare(y: number, x: number) {
+		this.boardHistory[y][x] = this.board[y][x] = true;
+	}
+
+	eraseSquare(y: number, x: number) {
+		this.boardHistory[y][x] = this.board[y][x] = false;
 	}
 
 	startGame() {
@@ -87,7 +113,11 @@ export class CgolComponent {
 
 	clearGame() {
 		this.stopGame();
-		this.initBoard(this.BOARD_SIZE);
+		for (let i = 0; i < this.board.length; i++) {
+			for (let j = 0; j < this.board[0].length; j++) {
+				this.eraseSquare(i, j);
+			}
+		}
 	}
 
 	isRunning(): boolean {
@@ -132,7 +162,15 @@ export class CgolComponent {
 
 	updateInterval(interval: number) {
 		this.BOARD_INTERVAL = interval;
-		this.stopGame();
-		this.startGame();
+		if (this.running) {
+			this.stopGame();
+			this.startGame();
+		}
+	}
+
+	updateSize(size: number) {
+		this.BOARD_SIZE = size;
+		if (this.running) this.stopGame();
+		this.initBoard();
 	}
 }

@@ -73,7 +73,7 @@ export class LantComponent {
 
 	clearGame() {
 		this.stopGame();
-		this.initBoard();
+		this.initBoard(this.BOARD_SIZE);
 	}
 
 	isRunning(): boolean {

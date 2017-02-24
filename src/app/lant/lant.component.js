@@ -48,7 +48,7 @@ var LantComponent = (function () {
     };
     LantComponent.prototype.clearGame = function () {
         this.stopGame();
-        this.initBoard();
+        this.initBoard(this.BOARD_SIZE);
     };
     LantComponent.prototype.isRunning = function () {
         return this.running;

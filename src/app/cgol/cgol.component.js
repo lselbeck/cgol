@@ -14,8 +14,10 @@ var CgolComponent = (function () {
         //control variables
         this.intervalOptions = [100, 200, 500, 1000, 2000];
         this.sizeOptions = [10, 20, 50, 100];
-        this.BOARD_SIZE = this.sizeOptions[3]; //the number of squares tall the board is
-        this.BOARD_INTERVAL = this.intervalOptions[0]; //number of milliseconds the board takes to update
+        this.wrapOptions = ["No Wrap Around", "Wrap Around"];
+        this.BOARD_SIZE = this.sizeOptions[1]; //the number of squares tall the board is
+        this.BOARD_INTERVAL = this.intervalOptions[1]; //number of milliseconds the board takes to update
+        this.BOARD_WRAP = false; //wrapping for edges of board
         this.initBoard();
         this.running = false;
         this.mouseState = false;
@@ -24,16 +26,16 @@ var CgolComponent = (function () {
     CgolComponent.prototype.initBoard = function () {
         var viewportW = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
         var viewportH = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
-        var boardH = this.BOARD_SIZE;
-        var boardW = Math.floor(boardH * viewportW / viewportH);
-        this.squareH = Math.floor(viewportH * 0.95 / boardH);
-        this.squareW = Math.floor(viewportW * 0.95 / boardW);
+        this.boardH = this.BOARD_SIZE;
+        this.boardW = Math.floor(this.boardH * viewportW / viewportH);
+        this.squareH = Math.floor(viewportH * 0.95 / this.boardH);
+        this.squareW = Math.floor(viewportW * 0.95 / this.boardW);
         this.board = [];
         this.boardHistory = [];
-        for (var i = 0; i < boardH; i++) {
+        for (var i = 0; i < this.boardH; i++) {
             this.board[i] = [];
             this.boardHistory[i] = [];
-            for (var j = 0; j < boardW; j++) {
+            for (var j = 0; j < this.boardW; j++) {
                 this.board[i][j] = false;
                 this.boardHistory[i][j] = false;
             }
@@ -73,8 +75,8 @@ var CgolComponent = (function () {
     };
     CgolComponent.prototype.clearGame = function () {
         this.stopGame();
-        for (var i = 0; i < this.board.length; i++) {
-            for (var j = 0; j < this.board[0].length; j++) {
+        for (var i = 0; i < this.boardH; i++) {
+            for (var j = 0; j < this.boardW; j++) {
                 this.eraseSquare(i, j);
             }
         }
@@ -84,8 +86,8 @@ var CgolComponent = (function () {
     };
     //Apply conway's rules every update
     CgolComponent.prototype.updateBoard = function () {
-        for (var y = 0; y < this.board.length; y++) {
-            for (var x = 0; x < this.board[0].length; x++) {
+        for (var y = 0; y < this.boardH; y++) {
+            for (var x = 0; x < this.boardW; x++) {
                 var numberOfNeighbors = this.getNumberOfNeighbors(y, x);
                 if (this.boardHistory[y][x] && numberOfNeighbors < 2)
                     this.board[y][x] = false;
@@ -105,45 +107,75 @@ var CgolComponent = (function () {
     };
     CgolComponent.prototype.getNumberOfNeighbors = function (y, x) {
         var count = 0;
-        if (!this.isOutOfBounds(y - 1, x - 1) && this.boardHistory[y - 1][x - 1])
-            count++;
-        if (!this.isOutOfBounds(y - 1, x) && this.boardHistory[y - 1][x])
-            count++;
-        if (!this.isOutOfBounds(y - 1, x + 1) && this.boardHistory[y - 1][x + 1])
-            count++;
-        if (!this.isOutOfBounds(y, x + 1) && this.boardHistory[y][x + 1])
-            count++;
-        if (!this.isOutOfBounds(y + 1, x + 1) && this.boardHistory[y + 1][x + 1])
-            count++;
-        if (!this.isOutOfBounds(y + 1, x) && this.boardHistory[y + 1][x])
-            count++;
-        if (!this.isOutOfBounds(y + 1, x - 1) && this.boardHistory[y + 1][x - 1])
-            count++;
-        if (!this.isOutOfBounds(y, x - 1) && this.boardHistory[y][x - 1])
-            count++;
+        if (this.BOARD_WRAP) {
+            if (this.boardHistory[this.mod(y - 1, this.boardH)][this.mod(x - 1, this.boardW)])
+                count++;
+            if (this.boardHistory[this.mod((y - 1), this.boardH)][this.mod(x, this.boardW)])
+                count++;
+            if (this.boardHistory[this.mod(y - 1, this.boardH)][this.mod(x + 1, this.boardW)])
+                count++;
+            if (this.boardHistory[this.mod(y, this.boardH)][this.mod(x + 1, this.boardW)])
+                count++;
+            if (this.boardHistory[this.mod(y + 1, this.boardH)][this.mod(x + 1, this.boardW)])
+                count++;
+            if (this.boardHistory[this.mod(y + 1, this.boardH)][this.mod(x, this.boardW)])
+                count++;
+            if (this.boardHistory[this.mod(y + 1, this.boardH)][this.mod(x - 1, this.boardW)])
+                count++;
+            if (this.boardHistory[this.mod(y, this.boardH)][this.mod(x - 1, this.boardW)])
+                count++;
+        }
+        else {
+            if (!this.isOutOfBounds(y - 1, x - 1) && this.boardHistory[y - 1][x - 1])
+                count++;
+            if (!this.isOutOfBounds(y - 1, x) && this.boardHistory[y - 1][x])
+                count++;
+            if (!this.isOutOfBounds(y - 1, x + 1) && this.boardHistory[y - 1][x + 1])
+                count++;
+            if (!this.isOutOfBounds(y, x + 1) && this.boardHistory[y][x + 1])
+                count++;
+            if (!this.isOutOfBounds(y + 1, x + 1) && this.boardHistory[y + 1][x + 1])
+                count++;
+            if (!this.isOutOfBounds(y + 1, x) && this.boardHistory[y + 1][x])
+                count++;
+            if (!this.isOutOfBounds(y + 1, x - 1) && this.boardHistory[y + 1][x - 1])
+                count++;
+            if (!this.isOutOfBounds(y, x - 1) && this.boardHistory[y][x - 1])
+                count++;
+        }
         return count;
     };
     CgolComponent.prototype.isOutOfBounds = function (y, x) {
-        return y < 0 || y >= this.board.length
-            || x < 0 || x >= this.board[0].length;
+        return y < 0 || y >= this.boardH
+            || x < 0 || x >= this.boardW;
     };
     CgolComponent.prototype.updateInterval = function (interval) {
-        this.BOARD_INTERVAL = interval;
+        this.BOARD_INTERVAL = Number(interval);
         if (this.running) {
             this.stopGame();
             this.startGame();
         }
     };
     CgolComponent.prototype.updateSize = function (size) {
-        this.BOARD_SIZE = size;
+        this.BOARD_SIZE = Number(size);
         if (this.running)
             this.stopGame();
         this.initBoard();
     };
+    CgolComponent.prototype.updateWrap = function () {
+        this.BOARD_WRAP = !this.BOARD_WRAP;
+    };
+    //helper math function (because js modulo operator isn't a real modulo)
+    CgolComponent.prototype.mod = function (n, m) {
+        return ((n % m) + m) % m;
+    };
+    CgolComponent.prototype.toType = function (obj) {
+        return ({}).toString.call(obj).match(/\s([a-zA-Z]+)/)[1].toLowerCase();
+    };
     CgolComponent = __decorate([
         core_1.Component({
             selector: 'cgol',
-            template: "\n\t<button (click)='startGame()' [disabled]=\"isRunning()\">Start</button>\n\t<button (click)='stopGame()' [disabled]=\"!isRunning()\">Stop</button>\n\t<button (click)='clearGame()'>Clear</button>\n\t<select #size (change)=\"updateSize(size.value)\" value={{sizeOptions[3]}}>\n\t\t<option selected disabled>Height</option>\n\t\t<option *ngFor=\"let size of sizeOptions\">{{size}}</option>\n\t</select>\n\t<select #interval (change)=\"updateInterval(interval.value)\" value={{intervalOptions[0]}}>\n\t\t<option selected disabled>Interval (ms)</option>\n\t\t<option *ngFor=\"let interval of intervalOptions\">{{interval}}</option>\n\t</select>\n\n\t<div class='row disable-select' *ngFor=\"let row of board; let y = index\" [style.height]=\"squareH + 'px'\">\n\t\t<div \n\t\t\t*ngFor=\"let square of board[y]; let x = index\"\n\t\t\tclass=\"square\"\n\t\t\t[style.background-color]=\"square?'#FFFFFF':'none'\"\n\t\t\t[style.width]=\"squareW + 'px'\"\n\t\t\t(mousedown)=\"mouseDown(y, x)\"\n\t\t\t(mouseup)=\"mouseUp(y, x)\"\n\t\t\t(mouseover)=\"mouseDrag(y, x)\"\n\t\t></div>\n\t</div>\n\t",
+            template: "\n\t<button (click)='startGame()' [disabled]=\"isRunning()\">Start</button>\n\t<button (click)='stopGame()' [disabled]=\"!isRunning()\">Stop</button>\n\t<button (click)='clearGame()'>Clear</button>\n\t<select #size (change)=\"updateSize(size.value)\" value={{BOARD_SIZE}}>\n\t\t<option selected disabled>Height</option>\n\t\t<option *ngFor=\"let size of sizeOptions\">{{size}}</option>\n\t</select>\n\t<select #interval (change)=\"updateInterval(interval.value)\" value={{BOARD_INTERVAL}}>\n\t\t<option selected disabled>Interval (ms)</option>\n\t\t<option *ngFor=\"let interval of intervalOptions\">{{interval}}</option>\n\t</select>\n\t<select #wrap (change)=\"updateWrap()\">\n\t\t<option *ngFor=\"let wrap of wrapOptions\">{{wrap}}</option>\n\t</select>\n\n\t<div class='row disable-select' *ngFor=\"let row of board; let y = index\" [style.height]=\"squareH + 'px'\">\n\t\t<div \n\t\t\t*ngFor=\"let square of board[y]; let x = index\"\n\t\t\tclass=\"square\"\n\t\t\t[style.background-color]=\"square?'#FFFFFF':'none'\"\n\t\t\t[style.width]=\"squareW + 'px'\"\n\t\t\t(mousedown)=\"mouseDown(y, x)\"\n\t\t\t(mouseup)=\"mouseUp(y, x)\"\n\t\t\t(mouseover)=\"mouseDrag(y, x)\"\n\t\t></div>\n\t</div>\n\t",
         }), 
         __metadata('design:paramtypes', [])
     ], CgolComponent);

@@ -7,13 +7,16 @@ import { Component } from '@angular/core';
 	<button (click)='startGame()' [disabled]="isRunning()">Start</button>
 	<button (click)='stopGame()' [disabled]="!isRunning()">Stop</button>
 	<button (click)='clearGame()'>Clear</button>
-	<select #size (change)="updateSize(size.value)" value={{sizeOptions[3]}}>
+	<select #size (change)="updateSize(size.value)" value={{BOARD_SIZE}}>
 		<option selected disabled>Height</option>
 		<option *ngFor="let size of sizeOptions">{{size}}</option>
 	</select>
-	<select #interval (change)="updateInterval(interval.value)" value={{intervalOptions[0]}}>
+	<select #interval (change)="updateInterval(interval.value)" value={{BOARD_INTERVAL}}>
 		<option selected disabled>Interval (ms)</option>
 		<option *ngFor="let interval of intervalOptions">{{interval}}</option>
+	</select>
+	<select #wrap (change)="updateWrap()">
+		<option *ngFor="let wrap of wrapOptions">{{wrap}}</option>
 	</select>
 
 	<div class='row disable-select' *ngFor="let row of board; let y = index" [style.height]="squareH + 'px'">
@@ -33,12 +36,16 @@ export class CgolComponent {
 	//control variables
 	intervalOptions: number[] = [100, 200, 500, 1000, 2000];
 	sizeOptions: number[] = [10, 20, 50, 100];
-	BOARD_SIZE: number = this.sizeOptions[3]; //the number of squares tall the board is
-	BOARD_INTERVAL: number = this.intervalOptions[0]; //number of milliseconds the board takes to update
+	wrapOptions: string[] = ["No Wrap Around", "Wrap Around"];
+	BOARD_SIZE: number = this.sizeOptions[1]; //the number of squares tall the board is
+	BOARD_INTERVAL: number = this.intervalOptions[1]; //number of milliseconds the board takes to update
+	BOARD_WRAP: boolean = false; //wrapping for edges of board
 
 	//board stuff
 	squareH: number;
 	squareW: number;
+	boardH: number;
+	boardW: number;
 	board: boolean[][];
 	boardHistory: boolean[][];
 	boardUpdater: any;
@@ -56,17 +63,17 @@ export class CgolComponent {
 	initBoard() {
 		let viewportW: number = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
 		let viewportH: number = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
-		let boardH: number = this.BOARD_SIZE;
-		let boardW: number = Math.floor(boardH * viewportW / viewportH);
-		this.squareH = Math.floor(viewportH * 0.95 / boardH);
-		this.squareW = Math.floor(viewportW * 0.95 / boardW);
+		this.boardH = this.BOARD_SIZE;
+		this.boardW = Math.floor(this.boardH * viewportW / viewportH);
+		this.squareH = Math.floor(viewportH * 0.95 / this.boardH);
+		this.squareW = Math.floor(viewportW * 0.95 / this.boardW);
 
 		this.board = [];
 		this.boardHistory = [];
-		for (let i = 0; i < boardH; i++) {
+		for (let i = 0; i < this.boardH; i++) {
 			this.board[i] = [];
 			this.boardHistory[i] = [];
-			for (let j = 0; j < boardW; j++) {
+			for (let j = 0; j < this.boardW; j++) {
 				this.board[i][j] = false;
 				this.boardHistory[i][j] = false;
 			}
@@ -113,8 +120,8 @@ export class CgolComponent {
 
 	clearGame() {
 		this.stopGame();
-		for (let i = 0; i < this.board.length; i++) {
-			for (let j = 0; j < this.board[0].length; j++) {
+		for (let i = 0; i < this.boardH; i++) {
+			for (let j = 0; j < this.boardW; j++) {
 				this.eraseSquare(i, j);
 			}
 		}
@@ -126,8 +133,8 @@ export class CgolComponent {
 
 	//Apply conway's rules every update
 	updateBoard() {
-		for (let y = 0; y < this.board.length; y++) {
-			for (let x = 0; x < this.board[0].length; x++) {
+		for (let y = 0; y < this.boardH; y++) {
+			for (let x = 0; x < this.boardW; x++) {
 				let numberOfNeighbors = this.getNumberOfNeighbors(y, x);
 				if (this.boardHistory[y][x] && numberOfNeighbors < 2) this.board[y][x] = false;
 				else if (this.boardHistory[y][x] && (numberOfNeighbors == 2 || numberOfNeighbors == 3)) this.board[y][x] = true;
@@ -135,6 +142,7 @@ export class CgolComponent {
 				else if (!this.boardHistory[y][x] && numberOfNeighbors == 3) this.board[y][x] = true;
 			}
 		}
+
 		for (let y = 0; y < this.board.length; y++) {
 			for (let x = 0; x < this.board[0].length; x++) {
 				this.boardHistory[y][x] = this.board[y][x];
@@ -144,24 +152,35 @@ export class CgolComponent {
 
 	getNumberOfNeighbors(y: number, x: number): number {
 		let count: number = 0;
-		if (!this.isOutOfBounds(y-1, x-1) && this.boardHistory[y-1][x-1]) count++;
-		if (!this.isOutOfBounds(y-1, x)   && this.boardHistory[y-1][x])   count++;
-		if (!this.isOutOfBounds(y-1, x+1) && this.boardHistory[y-1][x+1]) count++;
-		if (!this.isOutOfBounds(y,   x+1) && this.boardHistory[y]  [x+1]) count++;
-		if (!this.isOutOfBounds(y+1, x+1) && this.boardHistory[y+1][x+1]) count++;
-		if (!this.isOutOfBounds(y+1, x)   && this.boardHistory[y+1][x])   count++;
-		if (!this.isOutOfBounds(y+1, x-1) && this.boardHistory[y+1][x-1]) count++;
-		if (!this.isOutOfBounds(y,   x-1) && this.boardHistory[y]  [x-1]) count++;
+		if (this.BOARD_WRAP) {
+			if (this.boardHistory[this.mod(y-1,this.boardH)][this.mod(x-1,this.boardW)]) count++;
+			if (this.boardHistory[this.mod((y-1),this.boardH)][this.mod(x,  this.boardW)]) count++;
+			if (this.boardHistory[this.mod(y-1,this.boardH)][this.mod(x+1,this.boardW)]) count++;
+			if (this.boardHistory[this.mod(y,  this.boardH)][this.mod(x+1,this.boardW)]) count++;
+			if (this.boardHistory[this.mod(y+1,this.boardH)][this.mod(x+1,this.boardW)]) count++;
+			if (this.boardHistory[this.mod(y+1,this.boardH)][this.mod(x,  this.boardW)]) count++;
+			if (this.boardHistory[this.mod(y+1,this.boardH)][this.mod(x-1,this.boardW)]) count++;
+			if (this.boardHistory[this.mod(y,  this.boardH)][this.mod(x-1,this.boardW)]) count++;
+		} else {
+			if (!this.isOutOfBounds(y-1, x-1) && this.boardHistory[y-1][x-1]) count++;
+			if (!this.isOutOfBounds(y-1, x)   && this.boardHistory[y-1][x])   count++;
+			if (!this.isOutOfBounds(y-1, x+1) && this.boardHistory[y-1][x+1]) count++;
+			if (!this.isOutOfBounds(y,   x+1) && this.boardHistory[y]  [x+1]) count++;
+			if (!this.isOutOfBounds(y+1, x+1) && this.boardHistory[y+1][x+1]) count++;
+			if (!this.isOutOfBounds(y+1, x)   && this.boardHistory[y+1][x])   count++;
+			if (!this.isOutOfBounds(y+1, x-1) && this.boardHistory[y+1][x-1]) count++;
+			if (!this.isOutOfBounds(y,   x-1) && this.boardHistory[y]  [x-1]) count++;
+		}
 		return count;
 	}
 
 	isOutOfBounds(y: number, x: number): boolean {
-		return y < 0 || y >= this.board.length
-			|| x < 0 || x >= this.board[0].length;
+		return y < 0 || y >= this.boardH
+			|| x < 0 || x >= this.boardW;
 	}
 
 	updateInterval(interval: number) {
-		this.BOARD_INTERVAL = interval;
+		this.BOARD_INTERVAL = Number(interval);
 		if (this.running) {
 			this.stopGame();
 			this.startGame();
@@ -169,8 +188,21 @@ export class CgolComponent {
 	}
 
 	updateSize(size: number) {
-		this.BOARD_SIZE = size;
+		this.BOARD_SIZE = Number(size);
 		if (this.running) this.stopGame();
 		this.initBoard();
+	}
+
+	updateWrap() {
+		this.BOARD_WRAP = !this.BOARD_WRAP;
+	}
+
+	//helper math function (because js modulo operator isn't a real modulo)
+	mod(n: number, m: number) {
+        return ((n % m) + m) % m;
+	}
+
+	toType(obj: any) {
+		return ({}).toString.call(obj).match(/\s([a-zA-Z]+)/)[1].toLowerCase()
 	}
 }
